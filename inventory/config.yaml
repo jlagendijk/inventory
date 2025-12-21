@@ -41,4 +41,4 @@ hassio_api: true
 homeassistant_api: true
 
 # Persistente data in /data (Supervisor bind-mount)
-backup: true
+backup: cold
