@@ -21,8 +21,8 @@ ports:
 options:
   db_host: core-mariadb
   db_port: 3306
-  db_user: inventory_user
-  db_password: change_me
+  db_user: jeroenlagendijk
+  db_password: M@@ssluis01!
   db_name: inventory
   base_url: ""
 
