@@ -1,11 +1,8 @@
-/* inventory/web/app.js
-   Full client for:
-   - Items CRUD
-   - Receipts upload + list + delete (per item)
-   - Locations + Boxes (inventory)
-   - Box dialog (see contents of a box)
-   - Bulk select items → move to box
-   - Search filter (items + boxes)
+/* inventory/web/app.js (DECOUPLED)
+   - Module A: Artikelen + kassabonnen (purchase)
+   - Module B: Dozen-inventaris (separate inventory)
+   - Search filters BOTH lists (client-side)
+   - Box dialog shows inventory_box_items (NOT articles)
 */
 
 const $ = (id) => document.getElementById(id);
@@ -14,7 +11,6 @@ const $ = (id) => document.getElementById(id);
 // Ingress-safe API helper
 // -------------------------
 function getBase() {
-  // Keeps calls inside /api/hassio_ingress/<token>/ when running via Ingress
   return new URL(".", window.location.href);
 }
 
@@ -23,13 +19,11 @@ async function api(path, options = {}) {
   const clean = String(path).replace(/^\/+/, "");
   const url = new URL(clean, base);
 
-  const res = await fetch(url.toString(), {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
+  const isFormData = options.body instanceof FormData;
+  const headers = { ...(options.headers || {}) };
+  if (!isFormData) headers["Content-Type"] = headers["Content-Type"] || "application/json";
+
+  const res = await fetch(url.toString(), { ...options, headers });
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
@@ -54,15 +48,14 @@ function escapeHtml(s) {
 // -------------------------
 // State
 // -------------------------
-let items = [];
-let locations = [];
-let boxes = [];
+let items = [];               // purchase items
+let invLocations = [];        // inventory locations
+let invBoxes = [];            // inventory boxes
 
-let activeItemId = null;     // for receipts dialog
-let selectedBoxId = null;    // for box dialog
+let activeItemId = null;      // for receipts dialog
+let selectedInvBoxId = null;  // for inventory box dialog
 
-const selectedItems = new Set(); // bulk selection
-let searchTerm = "";             // search filter
+let searchTerm = "";
 
 // -------------------------
 // Health
@@ -78,9 +71,9 @@ async function loadHealth() {
   }
 }
 
-// -------------------------
-// Items
-// -------------------------
+// =====================================================================
+// MODULE A: Artikelen + Kassabonnen
+// =====================================================================
 async function loadItems() {
   items = await api("api/items");
   renderItems();
@@ -92,7 +85,7 @@ function renderItems() {
 
   const filtered = searchTerm
     ? items.filter((it) => {
-        const s = `${it.name} ${it.store ?? ""} ${it.article_no ?? ""} ${it.notes ?? ""} ${it.box_code ?? ""} ${it.box_label ?? ""}`.toLowerCase();
+        const s = `${it.name} ${it.store ?? ""} ${it.article_no ?? ""} ${it.notes ?? ""}`.toLowerCase();
         return s.includes(searchTerm);
       })
     : items;
@@ -105,45 +98,22 @@ function renderItems() {
   for (const it of filtered) {
     const pd = it.purchase_date ? String(it.purchase_date).slice(0, 10) : "-";
     const wm = it.warranty_months ?? "-";
-    const boxLine = it.box_code
-      ? `${it.box_code}${it.box_label ? " — " + it.box_label : ""}`
-      : "-";
-
-    const checked = selectedItems.has(Number(it.id)) ? "checked" : "";
 
     const div = document.createElement("div");
     div.className = "item";
     div.innerHTML = `
       <div class="itemMain">
-        <div class="itemTitleRow">
-          <label class="check">
-            <input type="checkbox" data-sel="${it.id}" ${checked} />
-            <span></span>
-          </label>
-          <div class="itemTitle">${escapeHtml(it.name)}</div>
-        </div>
-
+        <div class="itemTitle">${escapeHtml(it.name)}</div>
         <div class="itemMeta">
           <span><b>Winkel:</b> ${escapeHtml(it.store ?? "-")}</span>
           <span><b>Garantie:</b> ${wm} mnd</span>
           <span><b>Artikel#:</b> ${escapeHtml(it.article_no ?? "-")}</span>
           <span><b>Aankoop:</b> ${pd}</span>
-          <span><b>Doos:</b> ${escapeHtml(boxLine)}</span>
         </div>
-
         ${it.notes ? `<div class="itemNotes">${escapeHtml(it.notes)}</div>` : ""}
       </div>
 
       <div class="itemActions">
-        <select class="boxSelect" data-item="${it.id}">
-          <option value="">(uit doos)</option>
-          ${boxes.map((b) => {
-            const selected = Number(it.box_id) === Number(b.id) ? "selected" : "";
-            const label = `${b.code}${b.label ? " — " + b.label : ""}`;
-            return `<option value="${b.id}" ${selected}>${escapeHtml(label)}</option>`;
-          }).join("")}
-        </select>
-
         <button class="secondary" data-receipts="${it.id}">Kassabonnen</button>
         <button class="danger" data-del="${it.id}">Verwijderen</button>
       </div>
@@ -151,44 +121,14 @@ function renderItems() {
     root.appendChild(div);
   }
 
-  // Selection checkboxes
-  root.querySelectorAll("[data-sel]").forEach((cb) => {
-    cb.addEventListener("change", () => {
-      const id = Number(cb.getAttribute("data-sel"));
-      if (cb.checked) selectedItems.add(id);
-      else selectedItems.delete(id);
-    });
-  });
-
-  // Per-item move to box
-  root.querySelectorAll(".boxSelect").forEach((sel) => {
-    sel.addEventListener("change", async () => {
-      const itemId = Number(sel.getAttribute("data-item"));
-      const val = sel.value;
-      const box_id = val === "" ? null : Number(val);
-      await api(`api/items/${itemId}/move`, {
-        method: "POST",
-        body: JSON.stringify({ box_id }),
-      });
-      await loadBoxes();  // updates counts
-      renderBulkBoxSelect();
-      await loadItems();  // refresh items list (box labels)
-    });
-  });
-
-  // Delete item
   root.querySelectorAll("[data-del]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const id = Number(btn.getAttribute("data-del"));
       await api(`api/items/${id}`, { method: "DELETE" });
-      selectedItems.delete(id);
-      await loadBoxes();
-      renderBulkBoxSelect();
       await loadItems();
     });
   });
 
-  // Receipts dialog
   root.querySelectorAll("[data-receipts]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       activeItemId = Number(btn.getAttribute("data-receipts"));
@@ -199,9 +139,7 @@ function renderItems() {
   });
 }
 
-// -------------------------
 // Receipts
-// -------------------------
 async function loadReceipts(itemId) {
   const list = await api(`api/items/${itemId}/receipts`);
   const root = $("receiptsList");
@@ -247,26 +185,27 @@ async function uploadReceipt(itemId, file) {
   }
 }
 
-// -------------------------
-// Locations
-// -------------------------
-async function loadLocations() {
-  locations = await api("api/locations");
-  renderLocations();
-  renderLocationSelect();
+// =====================================================================
+// MODULE B: Dozen-inventaris (LOS)
+// =====================================================================
+async function loadInvLocations() {
+  invLocations = await api("api/inventory/locations");
+  renderInvLocations();
+  renderInvLocationSelect();
 }
 
-function renderLocations() {
+function renderInvLocations() {
   const root = $("locationsList");
   if (!root) return;
 
   root.innerHTML = "";
+
   const filtered = searchTerm
-    ? locations.filter((l) => {
+    ? invLocations.filter((l) => {
         const s = `${l.name} ${l.notes ?? ""}`.toLowerCase();
         return s.includes(searchTerm);
       })
-    : locations;
+    : invLocations;
 
   if (!filtered.length) {
     root.innerHTML = `<div class="empty">Nog geen locaties (of geen zoekresultaten).</div>`;
@@ -285,21 +224,20 @@ function renderLocations() {
 
   root.querySelectorAll("[data-loc-del]").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      await api(`api/locations/${btn.getAttribute("data-loc-del")}`, { method: "DELETE" });
-      await loadLocations();
-      await loadBoxes();
-      renderBulkBoxSelect();
-      renderItems();
+      const id = Number(btn.getAttribute("data-loc-del"));
+      await api(`api/inventory/locations/${id}`, { method: "DELETE" });
+      await loadInvLocations();
+      await loadInvBoxes();
     });
   });
 }
 
-function renderLocationSelect() {
+function renderInvLocationSelect() {
   const sel = $("boxLocation");
   if (!sel) return;
 
   sel.innerHTML = `<option value="">(geen locatie)</option>`;
-  for (const l of locations) {
+  for (const l of invLocations) {
     const opt = document.createElement("option");
     opt.value = l.id;
     opt.textContent = l.name;
@@ -307,26 +245,23 @@ function renderLocationSelect() {
   }
 }
 
-// -------------------------
-// Boxes
-// -------------------------
-async function loadBoxes() {
-  boxes = await api("api/boxes");
-  renderBoxes();
+async function loadInvBoxes() {
+  invBoxes = await api("api/inventory/boxes");
+  renderInvBoxes();
 }
 
-function renderBoxes() {
+function renderInvBoxes() {
   const root = $("boxesList");
   if (!root) return;
 
   root.innerHTML = "";
 
   const filtered = searchTerm
-    ? boxes.filter((b) => {
+    ? invBoxes.filter((b) => {
         const s = `${b.code} ${b.label ?? ""} ${b.notes ?? ""} ${b.location_name ?? ""}`.toLowerCase();
         return s.includes(searchTerm);
       })
-    : boxes;
+    : invBoxes;
 
   if (!filtered.length) {
     root.innerHTML = `<div class="empty">Nog geen dozen (of geen zoekresultaten).</div>`;
@@ -352,226 +287,186 @@ function renderBoxes() {
 
   root.querySelectorAll("[data-box-open]").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      await openBox(btn.getAttribute("data-box-open"));
+      await openInvBox(btn.getAttribute("data-box-open"));
     });
   });
 
   root.querySelectorAll("[data-box-del]").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      await api(`api/boxes/${btn.getAttribute("data-box-del")}`, { method: "DELETE" });
-      await loadBoxes();
-      renderBulkBoxSelect();
-      await loadItems();
+      const id = Number(btn.getAttribute("data-box-del"));
+      await api(`api/inventory/boxes/${id}`, { method: "DELETE" });
+      await loadInvBoxes();
     });
   });
 }
 
-function renderBulkBoxSelect() {
-  const sel = $("bulkBoxSelect");
-  if (!sel) return;
-
-  sel.innerHTML = `<option value="">(kies doos)</option>`;
-  for (const b of boxes) {
-    const label = `${b.code}${b.label ? " — " + b.label : ""}`;
-    const opt = document.createElement("option");
-    opt.value = b.id;
-    opt.textContent = label;
-    sel.appendChild(opt);
-  }
-}
-
-// -------------------------
-// Box dialog (contents)
-// -------------------------
-async function openBox(boxId) {
-  selectedBoxId = Number(boxId);
-  const box = boxes.find((b) => Number(b.id) === selectedBoxId);
+// Inventory box dialog (shows inventory_box_items)
+async function openInvBox(boxId) {
+  selectedInvBoxId = Number(boxId);
+  const box = invBoxes.find((b) => Number(b.id) === selectedInvBoxId);
 
   $("boxDlgTitle").textContent = box
     ? `Doos: ${box.code}${box.label ? " — " + box.label : ""}`
-    : `Doos: ${selectedBoxId}`;
+    : `Doos: ${selectedInvBoxId}`;
 
   $("boxDlgMeta").textContent = box
     ? `Locatie: ${box.location_name ?? "-"} • Items: ${box.item_count ?? 0}`
     : "";
 
-  const itemsInBox = await api(`api/boxes/${selectedBoxId}/items`);
-  renderBoxItems(itemsInBox);
+  const content = await api(`api/inventory/boxes/${selectedInvBoxId}/items`);
+  renderInvBoxItems(content);
 
   $("boxDlg").showModal();
 }
 
-function renderBoxItems(itemsInBox) {
+function renderInvBoxItems(content) {
   const root = $("boxItemsList");
   root.innerHTML = "";
 
-  if (!itemsInBox.length) {
-    root.innerHTML = `<div class="empty">Deze doos is leeg.</div>`;
+  // Add quick-add form at top
+  const add = document.createElement("div");
+  add.className = "subcard";
+  add.innerHTML = `
+    <div class="row">
+      <input id="invItemName" placeholder="Wat zit er in deze doos? (bijv. kerstballen)" />
+      <input id="invItemQty" type="number" min="0" step="1" placeholder="Aantal" style="max-width:120px" />
+      <button id="invAddItemBtn" type="button">Toevoegen</button>
+    </div>
+    <div class="hint">Tip: gebruik zoek bovenaan om dozen snel terug te vinden.</div>
+  `;
+  root.appendChild(add);
+
+  $("invAddItemBtn").addEventListener("click", async () => {
+    const name = ($("invItemName").value ?? "").trim();
+    if (!name) return;
+    const qtyRaw = ($("invItemQty").value ?? "").trim();
+    const qty = qtyRaw === "" ? null : Number(qtyRaw);
+
+    await api(`api/inventory/boxes/${selectedInvBoxId}/items`, {
+      method: "POST",
+      body: JSON.stringify({ name, qty }),
+    });
+
+    $("invItemName").value = "";
+    $("invItemQty").value = "";
+
+    const refreshed = await api(`api/inventory/boxes/${selectedInvBoxId}/items`);
+    renderInvBoxItems(refreshed);
+    await loadInvBoxes(); // refresh counts in list
+  });
+
+  if (!content.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "Deze doos heeft nog geen inhoudregels.";
+    root.appendChild(empty);
     return;
   }
 
-  for (const it of itemsInBox) {
-    const pd = it.purchase_date ? String(it.purchase_date).slice(0, 10) : "-";
-    const wm = it.warranty_months ?? "-";
-
+  for (const it of content) {
     const div = document.createElement("div");
     div.className = "item";
     div.innerHTML = `
       <div class="itemMain">
         <div class="itemTitle">${escapeHtml(it.name)}</div>
         <div class="itemMeta">
-          <span><b>Winkel:</b> ${escapeHtml(it.store ?? "-")}</span>
-          <span><b>Garantie:</b> ${wm} mnd</span>
-          <span><b>Artikel#:</b> ${escapeHtml(it.article_no ?? "-")}</span>
-          <span><b>Aankoop:</b> ${pd}</span>
+          <span><b>Aantal:</b> ${it.qty ?? "-"}</span>
         </div>
         ${it.notes ? `<div class="itemNotes">${escapeHtml(it.notes)}</div>` : ""}
       </div>
       <div class="itemActions">
-        <button class="secondary" data-receipts="${it.id}">Kassabonnen</button>
-        <button class="secondary" data-unbox="${it.id}">Uit doos</button>
+        <button class="danger" data-inv-del="${it.id}">Verwijder</button>
       </div>
     `;
     root.appendChild(div);
   }
 
-  // Unbox item
-  root.querySelectorAll("[data-unbox]").forEach((btn) => {
+  root.querySelectorAll("[data-inv-del]").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      const itemId = Number(btn.getAttribute("data-unbox"));
-      await api(`api/items/${itemId}/move`, {
-        method: "POST",
-        body: JSON.stringify({ box_id: null }),
-      });
-      await loadBoxes();
-      renderBulkBoxSelect();
-      await openBox(selectedBoxId); // refresh dialog
-      await loadItems();            // refresh main list
-    });
-  });
+      const id = Number(btn.getAttribute("data-inv-del"));
+      await api(`api/inventory/box-items/${id}`, { method: "DELETE" });
 
-  // Receipts from dialog
-  root.querySelectorAll("[data-receipts]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      activeItemId = Number(btn.getAttribute("data-receipts"));
-      $("receiptFile").value = "";
-      await loadReceipts(activeItemId);
-      $("receiptsDlg").showModal();
+      const refreshed = await api(`api/inventory/boxes/${selectedInvBoxId}/items`);
+      renderInvBoxItems(refreshed);
+      await loadInvBoxes();
     });
   });
 }
 
-// -------------------------
-// Search
-// -------------------------
+// =====================================================================
+// Search + Wire-up
+// =====================================================================
 function wireSearch() {
   const s = $("search");
   if (!s) return;
 
   s.addEventListener("input", () => {
     searchTerm = String(s.value ?? "").toLowerCase().trim();
-    // Re-render with filters applied
-    renderLocations();
-    renderBoxes();
+    // Re-render both modules
+    renderInvLocations();
+    renderInvBoxes();
     renderItems();
   });
 }
 
-// -------------------------
-// Bulk move
-// -------------------------
-function wireBulkControls() {
+// Bulk controls are from old coupled UI; disable to prevent confusion
+function disableBulkControls() {
+  const sel = $("bulkBoxSelect");
   const moveBtn = $("bulkMoveBtn");
   const clearBtn = $("bulkClearBtn");
-  const sel = $("bulkBoxSelect");
+  if (sel) sel.disabled = true;
+  if (moveBtn) moveBtn.disabled = true;
+  if (clearBtn) clearBtn.disabled = true;
 
-  if (moveBtn && sel) {
-    moveBtn.addEventListener("click", async () => {
-      const boxId = sel.value ? Number(sel.value) : null;
-      if (!boxId) return;
-
-      const ids = Array.from(selectedItems);
-      if (!ids.length) return;
-
-      // Move sequentially (stable, avoids hammering API)
-      for (const id of ids) {
-        await api(`api/items/${id}/move`, {
-          method: "POST",
-          body: JSON.stringify({ box_id: boxId }),
-        });
-      }
-
-      selectedItems.clear();
-      await loadBoxes();
-      renderBulkBoxSelect();
-      await loadItems();
-    });
-  }
-
-  if (clearBtn) {
-    clearBtn.addEventListener("click", async () => {
-      selectedItems.clear();
-      await loadItems();
-    });
-  }
+  if (sel) sel.innerHTML = `<option>(losgekoppeld)</option>`;
 }
 
-// -------------------------
+// =====================================================================
 // Bootstrap
-// -------------------------
+// =====================================================================
 document.addEventListener("DOMContentLoaded", async () => {
-  // Health + periodic check
   await loadHealth();
   setInterval(loadHealth, 10000);
 
-  // Inventory (locs/boxes) first, because items render uses boxes
-  await loadLocations();
-  await loadBoxes();
-  renderBulkBoxSelect();
+  wireSearch();
+  disableBulkControls();
+
+  // Load both modules
+  await loadInvLocations();
+  await loadInvBoxes();
   await loadItems();
 
-  // Search + bulk
-  wireSearch();
-  wireBulkControls();
+  // Add location (inventory module)
+  $("addLocBtn")?.addEventListener("click", async () => {
+    const name = ($("locName")?.value ?? "").trim();
+    if (!name) return;
+    await api("api/inventory/locations", { method: "POST", body: JSON.stringify({ name }) });
+    $("locName").value = "";
+    await loadInvLocations();
+    await loadInvBoxes();
+  });
 
-  // Add location
-  const addLocBtn = $("addLocBtn");
-  if (addLocBtn) {
-    addLocBtn.addEventListener("click", async () => {
-      const name = ($("locName")?.value ?? "").trim();
-      if (!name) return;
-      await api("api/locations", { method: "POST", body: JSON.stringify({ name }) });
-      $("locName").value = "";
-      await loadLocations();
-    });
-  }
+  // Add box (inventory module)
+  $("addBoxBtn")?.addEventListener("click", async () => {
+    const code = ($("boxCode")?.value ?? "").trim();
+    if (!code) return;
 
-  // Add box
-  const addBoxBtn = $("addBoxBtn");
-  if (addBoxBtn) {
-    addBoxBtn.addEventListener("click", async () => {
-      const code = ($("boxCode")?.value ?? "").trim();
-      if (!code) return;
+    const payload = {
+      code,
+      label: ($("boxLabel")?.value ?? "").trim() || null,
+      location_id: $("boxLocation")?.value ? Number($("boxLocation").value) : null,
+    };
 
-      const payload = {
-        code,
-        label: ($("boxLabel")?.value ?? "").trim() || null,
-        location_id: $("boxLocation")?.value ? Number($("boxLocation").value) : null,
-      };
+    await api("api/inventory/boxes", { method: "POST", body: JSON.stringify(payload) });
 
-      await api("api/boxes", { method: "POST", body: JSON.stringify(payload) });
+    $("boxCode").value = "";
+    $("boxLabel").value = "";
+    $("boxLocation").value = "";
 
-      $("boxCode").value = "";
-      $("boxLabel").value = "";
-      $("boxLocation").value = "";
+    await loadInvBoxes();
+  });
 
-      await loadBoxes();
-      renderBulkBoxSelect();
-      renderItems();
-    });
-  }
-
-  // New item form
+  // New item form (purchase module)
   $("itemForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const payload = {
@@ -587,10 +482,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     await loadItems();
   });
 
-  // Reset item form
   $("resetBtn")?.addEventListener("click", () => $("itemForm")?.reset());
 
-  // Upload receipt button
+  // Receipt upload
   $("uploadReceiptBtn")?.addEventListener("click", async () => {
     if (!activeItemId) return;
     const f = $("receiptFile")?.files?.[0];
