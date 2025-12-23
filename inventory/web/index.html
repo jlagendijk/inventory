@@ -6,6 +6,7 @@
   <title>Inventory</title>
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
   <header class="topbar">
     <div class="title">Inventory</div>
@@ -13,6 +14,13 @@
   </header>
 
   <main class="container">
+    <section class="card">
+      <h2>Zoeken</h2>
+      <div class="row">
+        <input id="search" placeholder="Zoek in artikelen, locaties en dozen..." />
+      </div>
+    </section>
+
     <section class="card">
       <h2>Nieuw artikel</h2>
 
@@ -55,40 +63,34 @@
     </section>
 
     <section class="card">
-  <h2>Inventaris (locaties & dozen)</h2>
-
-  <div class="split">
-    <div class="subcard">
-      <h3>Locaties</h3>
-      <div class="row">
-        <input id="locName" placeholder="Bijv. Zolder, Schuur, Garage" />
-        <button id="addLocBtn">Toevoegen</button>
-      </div>
-      <div id="locationsList" class="list"></div>
-    </div>
-
-    <div class="subcard">
-      <h3>Dozen</h3>
-      <div class="grid2">
-        <input id="boxCode" placeholder="Code (bijv. BOX-001)" />
-        <input id="boxLabel" placeholder="Label (bijv. Kerstspullen)" />
-        <select id="boxLocation"></select>
-        <button id="addBoxBtn">Doos toevoegen</button>
-      </div>
-      <div id="boxesList" class="list"></div>
-    </div>
-  </div>
-</section>
+      <h2>Artikelen</h2>
+      <div id="items" class="items"></div>
+    </section>
 
     <section class="card">
-      <h2>Artikelen</h2>
-      <div class="row">
-  <input id="search" placeholder="Zoek: artikel, winkel, artikelnummer, dooscode, locatie..." />
-  <select id="bulkBoxSelect"></select>
-  <button id="bulkMoveBtn">Verplaats selectie</button>
-  <button id="bulkClearBtn" class="secondary">Selectie leeg</button>
-</div>
-      <div id="items" class="items"></div>
+      <h2>Inventaris (locaties &amp; dozen)</h2>
+
+      <div class="split">
+        <div class="subcard">
+          <h3>Locaties</h3>
+          <div class="row">
+            <input id="locName" placeholder="Bijv. Zolder, Schuur, Garage" />
+            <button id="addLocBtn" type="button">Toevoegen</button>
+          </div>
+          <div id="locationsList" class="list"></div>
+        </div>
+
+        <div class="subcard">
+          <h3>Dozen</h3>
+          <div class="grid2">
+            <input id="boxCode" placeholder="Code (bijv. BOX-001)" />
+            <input id="boxLabel" placeholder="Label (bijv. Kerstspullen)" />
+            <select id="boxLocation"></select>
+            <button id="addBoxBtn" type="button">Doos toevoegen</button>
+          </div>
+          <div id="boxesList" class="list"></div>
+        </div>
+      </div>
     </section>
   </main>
 
@@ -116,21 +118,21 @@
   </dialog>
 
   <dialog id="boxDlg" class="dlg">
-  <form method="dialog" class="dlgInner">
-    <div class="dlgHeader">
-      <h3 id="boxDlgTitle">Doos</h3>
-      <button value="close" class="secondary">Sluiten</button>
-    </div>
-
-    <div class="dlgBody">
-      <div class="row">
-        <div class="hint" id="boxDlgMeta"></div>
+    <form method="dialog" class="dlgInner">
+      <div class="dlgHeader">
+        <h3 id="boxDlgTitle">Doos</h3>
+        <button value="close" class="secondary">Sluiten</button>
       </div>
 
-      <div id="boxItemsList" class="items"></div>
-    </div>
-  </form>
-</dialog>
+      <div class="dlgBody">
+        <div class="row">
+          <div class="hint" id="boxDlgMeta"></div>
+        </div>
+
+        <div id="boxItemsList" class="items"></div>
+      </div>
+    </form>
+  </dialog>
 
   <script src="app.js"></script>
 </body>
