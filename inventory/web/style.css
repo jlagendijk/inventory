@@ -157,3 +157,38 @@ button.danger {
 }
 .receiptLink { color: #dcd8ff; text-decoration: none; }
 .receiptLink:hover { text-decoration: underline; }
+
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.subcard {
+  border: 1px solid var(--border);
+  background: #10141b;
+  border-radius: 12px;
+  padding: 12px;
+}
+h3 { margin: 0 0 10px 0; font-size: 14px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: center; }
+.list { display: grid; gap: 8px; margin-top: 10px; }
+.listRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #0f1218;
+}
+.mutedSmall { color: var(--muted); font-size: 12px; margin-top: 4px; }
+.boxSelect { min-width: 220px; }
+select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #0f1218;
+  color: var(--text);
+}
+@media (max-width: 900px) {
+  .split { grid-template-columns: 1fr; }
+  .grid2 { grid-template-columns: 1fr; }
+}
