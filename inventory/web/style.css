@@ -192,3 +192,18 @@ select {
   .split { grid-template-columns: 1fr; }
   .grid2 { grid-template-columns: 1fr; }
 }
+
+.itemTitleRow { display: flex; align-items: center; gap: 10px; }
+.check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.check input { width: 16px; height: 16px; }
+.linkRow {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  padding: 10px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.linkRow:hover { border-color: rgba(106,90,205,.6); }
