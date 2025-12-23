@@ -1,5 +1,9 @@
 const $ = (id) => document.getElementById(id);
 
+let locations = [];
+let boxes = [];
+
+
 function getBase() {
   // Ingress-safe base (blijft binnen /api/hassio_ingress/<token>/)
   return new URL(".", window.location.href);
@@ -57,22 +61,36 @@ function renderItems() {
     const pd = it.purchase_date ? String(it.purchase_date).slice(0, 10) : "-";
     const wm = it.warranty_months ?? "-";
 
-    div.innerHTML = `
-      <div class="itemMain">
-        <div class="itemTitle">${escapeHtml(it.name)}</div>
-        <div class="itemMeta">
-          <span><b>Winkel:</b> ${escapeHtml(it.store ?? "-")}</span>
-          <span><b>Garantie:</b> ${wm} mnd</span>
-          <span><b>Artikel#:</b> ${escapeHtml(it.article_no ?? "-")}</span>
-          <span><b>Aankoop:</b> ${pd}</span>
-        </div>
-        ${it.notes ? `<div class="itemNotes">${escapeHtml(it.notes)}</div>` : ""}
-      </div>
-      <div class="itemActions">
-        <button class="secondary" data-receipts="${it.id}">Kassabonnen</button>
-        <button class="danger" data-del="${it.id}">Verwijderen</button>
-      </div>
-    `;
+    const boxLine = it.box_code
+  ? `${it.box_code}${it.box_label ? " — " + it.box_label : ""}`
+  : "-";
+
+div.innerHTML = `
+  <div class="itemMain">
+    <div class="itemTitle">${escapeHtml(it.name)}</div>
+    <div class="itemMeta">
+      <span><b>Winkel:</b> ${escapeHtml(it.store ?? "-")}</span>
+      <span><b>Garantie:</b> ${wm} mnd</span>
+      <span><b>Artikel#:</b> ${escapeHtml(it.article_no ?? "-")}</span>
+      <span><b>Aankoop:</b> ${pd}</span>
+      <span><b>Doos:</b> ${escapeHtml(boxLine)}</span>
+    </div>
+    ${it.notes ? `<div class="itemNotes">${escapeHtml(it.notes)}</div>` : ""}
+  </div>
+  <div class="itemActions">
+    <select class="boxSelect" data-item="${it.id}">
+      <option value="">(uit doos)</option>
+      ${boxes.map(b => {
+        const selected = Number(it.box_id) === Number(b.id) ? "selected" : "";
+        const label = `${b.code}${b.label ? " — " + b.label : ""}`;
+        return `<option value="${b.id}" ${selected}>${escapeHtml(label)}</option>`;
+      }).join("")}
+    </select>
+    <button class="secondary" data-receipts="${it.id}">Kassabonnen</button>
+    <button class="danger" data-del="${it.id}">Verwijderen</button>
+  </div>
+`;
+
 
     root.appendChild(div);
   }
@@ -85,14 +103,16 @@ function renderItems() {
     });
   });
 
-  root.querySelectorAll("[data-receipts]").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      activeItemId = Number(btn.getAttribute("data-receipts"));
-      $("receiptFile").value = "";
-      await loadReceipts(activeItemId);
-      $("receiptsDlg").showModal();
-    });
+  root.querySelectorAll(".boxSelect").forEach(sel => {
+  sel.addEventListener("change", async () => {
+    const itemId = Number(sel.getAttribute("data-item"));
+    const val = sel.value;
+    const box_id = val === "" ? null : Number(val);
+    await api(`api/items/${itemId}/move`, { method: "POST", body: JSON.stringify({ box_id }) });
+    await loadItems();
+    await loadBoxes();
   });
+});
 }
 
 async function loadItems() {
@@ -109,6 +129,84 @@ function escapeHtml(s) {
     "'": "&#039;"
   }[c]));
 }
+
+async function loadLocations() {
+  locations = await api("api/locations");
+  renderLocations();
+  renderLocationSelect();
+}
+
+function renderLocations() {
+  const root = $("locationsList");
+  root.innerHTML = "";
+  if (!locations.length) {
+    root.innerHTML = `<div class="empty">Nog geen locaties.</div>`;
+    return;
+  }
+  for (const l of locations) {
+    const row = document.createElement("div");
+    row.className = "listRow";
+    row.innerHTML = `
+      <div><b>${escapeHtml(l.name)}</b></div>
+      <button class="danger" data-loc-del="${l.id}">Verwijder</button>
+    `;
+    root.appendChild(row);
+  }
+  root.querySelectorAll("[data-loc-del]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      await api(`api/locations/${btn.getAttribute("data-loc-del")}`, { method: "DELETE" });
+      await loadLocations();
+      await loadBoxes();
+    });
+  });
+}
+
+function renderLocationSelect() {
+  const sel = $("boxLocation");
+  sel.innerHTML = `<option value="">(geen locatie)</option>`;
+  for (const l of locations) {
+    const opt = document.createElement("option");
+    opt.value = l.id;
+    opt.textContent = l.name;
+    sel.appendChild(opt);
+  }
+}
+
+async function loadBoxes() {
+  boxes = await api("api/boxes");
+  renderBoxes();
+}
+
+function renderBoxes() {
+  const root = $("boxesList");
+  root.innerHTML = "";
+  if (!boxes.length) {
+    root.innerHTML = `<div class="empty">Nog geen dozen.</div>`;
+    return;
+  }
+  for (const b of boxes) {
+    const row = document.createElement("div");
+    row.className = "listRow";
+    row.innerHTML = `
+      <div>
+        <div><b>${escapeHtml(b.code)}</b> ${b.label ? `— ${escapeHtml(b.label)}` : ""}</div>
+        <div class="mutedSmall">
+          Locatie: ${escapeHtml(b.location_name ?? "-")} • Items: ${b.item_count ?? 0}
+        </div>
+      </div>
+      <button class="danger" data-box-del="${b.id}">Verwijder</button>
+    `;
+    root.appendChild(row);
+  }
+  root.querySelectorAll("[data-box-del]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      await api(`api/boxes/${btn.getAttribute("data-box-del")}`, { method: "DELETE" });
+      await loadBoxes();
+      await loadItems();
+    });
+  });
+}
+
 
 // Receipts
 async function loadReceipts(itemId) {
@@ -185,6 +283,33 @@ document.addEventListener("DOMContentLoaded", async () => {
     $("receiptFile").value = "";
     await loadReceipts(activeItemId);
   });
+
+  await loadLocations();
+await loadBoxes();
+await loadItems();
+
+$("addLocBtn").addEventListener("click", async () => {
+  const name = $("locName").value.trim();
+  if (!name) return;
+  await api("api/locations", { method: "POST", body: JSON.stringify({ name }) });
+  $("locName").value = "";
+  await loadLocations();
+});
+
+$("addBoxBtn").addEventListener("click", async () => {
+  const code = $("boxCode").value.trim();
+  if (!code) return;
+  const payload = {
+    code,
+    label: $("boxLabel").value.trim() || null,
+    location_id: $("boxLocation").value ? Number($("boxLocation").value) : null
+  };
+  await api("api/boxes", { method: "POST", body: JSON.stringify(payload) });
+  $("boxCode").value = "";
+  $("boxLabel").value = "";
+  $("boxLocation").value = "";
+  await loadBoxes();
+});
 
   // health poll
   setInterval(loadHealth, 10000);
