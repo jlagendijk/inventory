@@ -7,6 +7,22 @@ import { createPool, ensureSchema } from "./db.js";
 
 const app = express();
 
+function jsonSafe(value) {
+  if (typeof value === "bigint") {
+    // veiligste: converteer naar Number als het past, anders string
+    const n = Number(value);
+    return Number.isSafeInteger(n) ? n : value.toString();
+  }
+  if (Array.isArray(value)) return value.map(jsonSafe);
+  if (value && typeof value === "object") {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) out[k] = jsonSafe(v);
+    return out;
+  }
+  return value;
+}
+
+
 // Add-on options komen via /data/options.json
 const OPTIONS_PATH = "/data/options.json";
 function readOptions() {
@@ -75,7 +91,8 @@ app.get(apiPath("/api/items"), async (req, res) => {
     const rows = await conn.query(
       "SELECT id, name, store, warranty_months, article_no, purchase_date, notes, created_at FROM items ORDER BY id DESC"
     );
-    res.json(rows);
+    res.json(jsonSafe(rows));
+
   } catch (e) {
     res.status(500).json({ error: String(e?.message ?? e) });
   } finally {
@@ -134,7 +151,8 @@ app.get(apiPath("/api/locations"), async (req, res) => {
     const rows = await conn.query(
       "SELECT id, name, notes, created_at FROM locations ORDER BY name ASC"
     );
-    res.json(rows);
+    res.json(jsonSafe(rows));
+
   } catch (e) {
     res.status(500).json({ error: String(e?.message ?? e) });
   } finally {
@@ -190,7 +208,8 @@ app.get(apiPath("/api/boxes"), async (req, res) => {
        LEFT JOIN locations l ON l.id = b.location_id
        ORDER BY b.code ASC`
     );
-    res.json(rows);
+    res.json(jsonSafe(rows));
+
   } catch (e) {
     res.status(500).json({ error: String(e?.message ?? e) });
   } finally {
