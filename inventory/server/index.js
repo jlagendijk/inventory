@@ -216,7 +216,24 @@ const PORT = 8099;
 
 (async () => {
   // DB & schema init
-  await ensureSchema(pool);
+    await ensureSchema(pool);
+
+  // Probeer FK items.box_id -> boxes.id toe te voegen (idempotent)
+  try {
+    const conn = await pool.getConnection();
+    try {
+      await conn.query(`
+        ALTER TABLE items
+        ADD CONSTRAINT fk_items_box
+        FOREIGN KEY (box_id) REFERENCES boxes(id) ON DELETE SET NULL
+      `);
+    } finally {
+      conn.release();
+    }
+  } catch {
+    // negeren: constraint bestaat al of DB ondersteunt IF NOT EXISTS niet
+  }
+
 
   app.listen(PORT, () => {
     console.log(`[Inventory] listening on :${PORT}`);
