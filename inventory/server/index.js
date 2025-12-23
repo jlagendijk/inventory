@@ -184,7 +184,8 @@ app.get(apiPath("/api/boxes"), async (req, res) => {
     const rows = await conn.query(
       `SELECT b.id, b.code, b.label, b.notes, b.created_at,
               b.location_id, l.name AS location_name,
-              (SELECT COUNT(*) FROM items i WHERE i.box_id = b.id) AS item_count
+              CAST((SELECT COUNT(*) FROM items i WHERE i.box_id = b.id) AS UNSIGNED) AS item_count
+
        FROM boxes b
        LEFT JOIN locations l ON l.id = b.location_id
        ORDER BY b.code ASC`
