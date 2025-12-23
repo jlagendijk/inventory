@@ -55,6 +55,32 @@
     </section>
 
     <section class="card">
+  <h2>Inventaris (locaties & dozen)</h2>
+
+  <div class="split">
+    <div class="subcard">
+      <h3>Locaties</h3>
+      <div class="row">
+        <input id="locName" placeholder="Bijv. Zolder, Schuur, Garage" />
+        <button id="addLocBtn">Toevoegen</button>
+      </div>
+      <div id="locationsList" class="list"></div>
+    </div>
+
+    <div class="subcard">
+      <h3>Dozen</h3>
+      <div class="grid2">
+        <input id="boxCode" placeholder="Code (bijv. BOX-001)" />
+        <input id="boxLabel" placeholder="Label (bijv. Kerstspullen)" />
+        <select id="boxLocation"></select>
+        <button id="addBoxBtn">Doos toevoegen</button>
+      </div>
+      <div id="boxesList" class="list"></div>
+    </div>
+  </div>
+</section>
+
+    <section class="card">
       <h2>Artikelen</h2>
       <div id="items" class="items"></div>
     </section>
