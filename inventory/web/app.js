@@ -2,6 +2,7 @@ const $ = (id) => document.getElementById(id);
 
 let locations = [];
 let boxes = [];
+let selectedBoxId = null;
 
 
 function getBase() {
@@ -188,21 +189,93 @@ function renderBoxes() {
     const row = document.createElement("div");
     row.className = "listRow";
     row.innerHTML = `
-      <div>
-        <div><b>${escapeHtml(b.code)}</b> ${b.label ? `— ${escapeHtml(b.label)}` : ""}</div>
-        <div class="mutedSmall">
-          Locatie: ${escapeHtml(b.location_name ?? "-")} • Items: ${b.item_count ?? 0}
-        </div>
+  <button class="linkRow" type="button" data-box-open="${b.id}">
+    <div>
+      <div><b>${escapeHtml(b.code)}</b> ${b.label ? `— ${escapeHtml(b.label)}` : ""}</div>
+      <div class="mutedSmall">
+        Locatie: ${escapeHtml(b.location_name ?? "-")} • Items: ${b.item_count ?? 0}
       </div>
-      <button class="danger" data-box-del="${b.id}">Verwijder</button>
-    `;
+    </div>
+  </button>
+  <button class="danger" data-box-del="${b.id}">Verwijder</button>
+`;
     root.appendChild(row);
   }
-  root.querySelectorAll("[data-box-del]").forEach(btn => {
+  root.querySelectorAll("[data-box-open]").forEach(btn => {
+  btn.addEventListener("click", async () => {
+    await openBox(btn.getAttribute("data-box-open"));
+  });
+});
+}
+
+async function openBox(boxId) {
+  selectedBoxId = Number(boxId);
+  const box = boxes.find(b => Number(b.id) === selectedBoxId);
+
+  $("boxDlgTitle").textContent = box
+    ? `Doos: ${box.code}${box.label ? " — " + box.label : ""}`
+    : `Doos: ${selectedBoxId}`;
+
+  $("boxDlgMeta").textContent = box
+    ? `Locatie: ${box.location_name ?? "-"} • Items: ${box.item_count ?? 0}`
+    : "";
+
+  const itemsInBox = await api(`api/boxes/${selectedBoxId}/items`);
+  renderBoxItems(itemsInBox);
+
+  $("boxDlg").showModal();
+}
+
+function renderBoxItems(itemsInBox) {
+  const root = $("boxItemsList");
+  root.innerHTML = "";
+
+  if (!itemsInBox.length) {
+    root.innerHTML = `<div class="empty">Deze doos is leeg.</div>`;
+    return;
+  }
+
+  for (const it of itemsInBox) {
+    const pd = it.purchase_date ? String(it.purchase_date).slice(0, 10) : "-";
+    const wm = it.warranty_months ?? "-";
+
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `
+      <div class="itemMain">
+        <div class="itemTitle">${escapeHtml(it.name)}</div>
+        <div class="itemMeta">
+          <span><b>Winkel:</b> ${escapeHtml(it.store ?? "-")}</span>
+          <span><b>Garantie:</b> ${wm} mnd</span>
+          <span><b>Artikel#:</b> ${escapeHtml(it.article_no ?? "-")}</span>
+          <span><b>Aankoop:</b> ${pd}</span>
+        </div>
+      </div>
+      <div class="itemActions">
+        <button class="secondary" data-receipts="${it.id}">Kassabonnen</button>
+        <button class="secondary" data-unbox="${it.id}">Uit doos</button>
+      </div>
+    `;
+    root.appendChild(div);
+  }
+
+  root.querySelectorAll("[data-unbox]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      await api(`api/boxes/${btn.getAttribute("data-box-del")}`, { method: "DELETE" });
+      const itemId = Number(btn.getAttribute("data-unbox"));
+      await api(`api/items/${itemId}/move`, { method: "POST", body: JSON.stringify({ box_id: null }) });
       await loadBoxes();
-      await loadItems();
+      await openBox(selectedBoxId); // refresh dialog
+      await loadItems();            // refresh main list
+    });
+  });
+
+  // hergebruik kassabon handler uit main render
+  root.querySelectorAll("[data-receipts]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      activeItemId = Number(btn.getAttribute("data-receipts"));
+      $("receiptFile").value = "";
+      await loadReceipts(activeItemId);
+      $("receiptsDlg").showModal();
     });
   });
 }
