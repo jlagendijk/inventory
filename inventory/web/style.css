@@ -17,14 +17,8 @@ body {
 }
 
 .topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--border);
-  background: #0c0e12;
-  position: sticky;
-  top: 0;
+  background-color: #fff3b0; /* iets donkerder geel */
+  border-bottom: 1px solid #f1e08a;
 }
 
 .title { font-weight: 700; letter-spacing: .2px; }
@@ -125,11 +119,8 @@ button.danger {
 .dlg::backdrop { background: rgba(0,0,0,.55); }
 
 .dlgInner {
-  width: min(900px, 95vw);
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 12px;
+  background-color: #ffffff;
+  border-radius: 8px;
 }
 
 .dlgHeader {
