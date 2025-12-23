@@ -22,6 +22,71 @@ function jsonSafe(value) {
   return value;
 }
 
+app.get(apiPath("/api/boxes/:id/items"), async (req, res) => {
+  const boxId = Number(req.params.id);
+  let conn;
+  try {
+    conn = await pool.getConnection();
+    const rows = await conn.query(
+      `SELECT i.id, i.name, i.store, i.warranty_months, i.article_no, i.purchase_date,
+              i.notes, i.created_at, i.box_id
+       FROM items i
+       WHERE i.box_id = ?
+       ORDER BY i.id DESC`,
+      [boxId]
+    );
+    res.json(jsonSafe(rows));
+  } catch (e) {
+    res.status(500).json({ error: String(e?.message ?? e) });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
+app.get(apiPath("/api/search"), async (req, res) => {
+  const q = String(req.query.q ?? "").trim();
+  const like = `%${q}%`;
+
+  let conn;
+  try {
+    conn = await pool.getConnection();
+
+    const items = q
+      ? await conn.query(
+          `SELECT i.id, i.name, i.store, i.warranty_months, i.article_no, i.purchase_date,
+                  i.notes, i.created_at, i.box_id,
+                  b.code AS box_code, b.label AS box_label
+           FROM items i
+           LEFT JOIN boxes b ON b.id = i.box_id
+           WHERE i.name LIKE ? OR i.store LIKE ? OR i.article_no LIKE ? OR i.notes LIKE ?
+           ORDER BY i.id DESC
+           LIMIT 200`,
+          [like, like, like, like]
+        )
+      : [];
+
+    const boxes = q
+      ? await conn.query(
+          `SELECT b.id, b.code, b.label, b.notes, b.created_at,
+                  b.location_id, l.name AS location_name,
+                  CAST((SELECT COUNT(*) FROM items i WHERE i.box_id = b.id) AS UNSIGNED) AS item_count
+           FROM boxes b
+           LEFT JOIN locations l ON l.id = b.location_id
+           WHERE b.code LIKE ? OR b.label LIKE ? OR b.notes LIKE ? OR l.name LIKE ?
+           ORDER BY b.code ASC
+           LIMIT 200`,
+          [like, like, like, like]
+        )
+      : [];
+
+    res.json(jsonSafe({ q, items, boxes }));
+  } catch (e) {
+    res.status(500).json({ error: String(e?.message ?? e) });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
 
 // Add-on options komen via /data/options.json
 const OPTIONS_PATH = "/data/options.json";
