@@ -126,6 +126,128 @@ app.delete(apiPath("/api/items/:id"), async (req, res) => {
   }
 });
 
+// ===== Locations =====
+app.get(apiPath("/api/locations"), async (req, res) => {
+  let conn;
+  try {
+    conn = await pool.getConnection();
+    const rows = await conn.query(
+      "SELECT id, name, notes, created_at FROM locations ORDER BY name ASC"
+    );
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: String(e?.message ?? e) });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
+app.post(apiPath("/api/locations"), async (req, res) => {
+  const { name, notes } = req.body ?? {};
+  if (!name || String(name).trim().length === 0) {
+    return res.status(400).json({ error: "name_required" });
+  }
+  let conn;
+  try {
+    conn = await pool.getConnection();
+    const result = await conn.query(
+      "INSERT INTO locations (name, notes) VALUES (?, ?)",
+      [String(name).trim(), notes ?? null]
+    );
+    res.json({ id: Number(result.insertId) });
+  } catch (e) {
+    res.status(500).json({ error: String(e?.message ?? e) });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
+app.delete(apiPath("/api/locations/:id"), async (req, res) => {
+  const id = Number(req.params.id);
+  let conn;
+  try {
+    conn = await pool.getConnection();
+    await conn.query("DELETE FROM locations WHERE id = ?", [id]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e?.message ?? e) });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
+// ===== Boxes =====
+app.get(apiPath("/api/boxes"), async (req, res) => {
+  let conn;
+  try {
+    conn = await pool.getConnection();
+    const rows = await conn.query(
+      `SELECT b.id, b.code, b.label, b.notes, b.created_at,
+              b.location_id, l.name AS location_name,
+              (SELECT COUNT(*) FROM items i WHERE i.box_id = b.id) AS item_count
+       FROM boxes b
+       LEFT JOIN locations l ON l.id = b.location_id
+       ORDER BY b.code ASC`
+    );
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: String(e?.message ?? e) });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
+app.post(apiPath("/api/boxes"), async (req, res) => {
+  const { code, label, location_id, notes } = req.body ?? {};
+  if (!code || String(code).trim().length === 0) {
+    return res.status(400).json({ error: "code_required" });
+  }
+  let conn;
+  try {
+    conn = await pool.getConnection();
+    const result = await conn.query(
+      "INSERT INTO boxes (code, label, location_id, notes) VALUES (?, ?, ?, ?)",
+      [String(code).trim(), label ?? null, location_id ?? null, notes ?? null]
+    );
+    res.json({ id: Number(result.insertId) });
+  } catch (e) {
+    res.status(500).json({ error: String(e?.message ?? e) });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
+app.delete(apiPath("/api/boxes/:id"), async (req, res) => {
+  const id = Number(req.params.id);
+  let conn;
+  try {
+    conn = await pool.getConnection();
+    await conn.query("DELETE FROM boxes WHERE id = ?", [id]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e?.message ?? e) });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
+// ===== Items: koppel aan doos =====
+app.post(apiPath("/api/items/:id/move"), async (req, res) => {
+  const itemId = Number(req.params.id);
+  const { box_id } = req.body ?? {}; // null = uit doos halen
+  let conn;
+  try {
+    conn = await pool.getConnection();
+    await conn.query("UPDATE items SET box_id = ? WHERE id = ?", [box_id ?? null, itemId]);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e?.message ?? e) });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
+
 // Receipts upload
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
@@ -146,10 +268,14 @@ app.get(apiPath("/api/items/:id/receipts"), async (req, res) => {
   try {
     conn = await pool.getConnection();
     const rows = await conn.query(
-      `SELECT id, item_id, filename, original_name, mime_type, size_bytes, uploaded_at
-       FROM receipts WHERE item_id = ? ORDER BY id DESC`,
-      [itemId]
-    );
+  `SELECT i.id, i.name, i.store, i.warranty_months, i.article_no, i.purchase_date,
+          i.notes, i.created_at, i.box_id,
+          b.code AS box_code, b.label AS box_label
+   FROM items i
+   LEFT JOIN boxes b ON b.id = i.box_id
+   ORDER BY i.id DESC`
+);
+
     // Voeg een URL toe voor direct bekijken
     const mapped = rows.map(r => ({
       ...r,
