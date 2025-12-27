@@ -199,3 +199,35 @@ select {
   cursor: pointer;
 }
 .linkRow:hover { border-color: rgba(106,90,205,.6); }
+
+/* --- Light inputs (override dark theme fields) --- */
+label { color: #333; } /* optioneel: labels leesbaar op licht */
+
+input,
+textarea,
+select {
+  background: #ffffff;
+  color: #222;
+  border: 1px solid #d7d7d7;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #777;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: #6a5acd;
+  box-shadow: 0 0 0 3px rgba(106, 90, 205, 0.18);
+}
+
+/* Zorg dat file input ook licht is */
+input[type="file"] {
+  background: #ffffff;
+  color: #222;
+  border: 1px solid #d7d7d7;
+  padding: 8px;
+}
