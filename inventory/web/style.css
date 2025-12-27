@@ -1,40 +1,53 @@
+/* style.css — light unified theme + black borders */
+
+/* --- Theme tokens --- */
 :root {
-  --bg: #ffffff;
-  --card: #171a21;
-  --text: #e9eef6;
-  --muted: #a7b0bf;
-  --accent: #6a5acd;
-  --danger: #e05d5d;
-  --border: #2a2f3a;
+  --bg: #fffbe6;        /* lichte achtergrond voor alles */
+  --surface: #fffbe6;   /* kaarten, lijsten, items, dialogs, knoppen */
+  --text: #222;
+  --muted: #444;
+  --border: #000;       /* alle borders zwart */
+  --focus: #6a5acd;     /* focus accent */
 }
 
+/* --- Base --- */
 * { box-sizing: border-box; }
+
 body {
   margin: 0;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  background: #fffbe6;
-  color: #222;
+  background: var(--bg);
+  color: var(--text);
 }
 
+/* Topbar ook dezelfde lichte kleur */
 .topbar {
-  background-color: #fff3b0; /* iets donkerder geel */
-  border-bottom: 1px solid #f1e08a;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
 }
 
 .title { font-weight: 700; letter-spacing: .2px; }
 
+/* --- Pills --- */
 .pill {
   font-size: 12px;
   padding: 6px 10px;
   border-radius: 999px;
   border: 1px solid var(--border);
-  color: var(--muted);
+  color: var(--text);
+  background: var(--surface);
 }
 .pill.ok {
-  border-color: rgba(106,90,205,.6);
-  color: #dcd8ff;
+  border-color: var(--border);
+  color: var(--text);
 }
 
+/* --- Layout --- */
 .container {
   max-width: 1100px;
   padding: 18px;
@@ -43,59 +56,109 @@ body {
   gap: 18px;
 }
 
+/* Alles dezelfde achtergrondkleur */
+.card,
+.subcard,
+.item,
+.receiptRow,
+.listRow,
+.dlgInner,
+.linkRow {
+  background: var(--surface) !important;
+}
+
+/* Borders overal zwart */
+.card,
+.subcard,
+.item,
+.receiptRow,
+.listRow,
+.dlgHeader,
+.linkRow,
+.pill {
+  border: 1px solid var(--border) !important;
+}
+
+/* Kaarten: geen “dark theme” schaduw nodig, maar mag subtiel */
 .card,
 .subcard {
-  background-color: #ffffff;
   border-radius: 8px;
   padding: 16px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  box-shadow: none; /* alles strak en uniform */
 }
 
 h2 { margin: 0 0 12px 0; font-size: 16px; }
+h3 { margin: 0 0 10px 0; font-size: 14px; }
 
+/* --- Forms --- */
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: center;
+}
+.span2 { grid-column: span 2; }
 
-label { display: grid; gap: 6px; font-size: 12px; color: var(--muted); }
-input, textarea {
+label { display: grid; gap: 6px; font-size: 12px; color: var(--text); }
+
+input,
+textarea,
+select {
   width: 100%;
   padding: 10px;
   border-radius: 10px;
-  border: 1px solid var(--border);
-  background: #0f1218;
+  border: 1px solid var(--border) !important;
+  background: var(--surface);
   color: var(--text);
 }
+
 textarea { resize: vertical; }
 
-.span2 { grid-column: span 2; }
-
-.actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
+input::placeholder,
+textarea::placeholder {
+  color: #666;
 }
 
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--border) !important;
+  box-shadow: 0 0 0 3px rgba(106, 90, 205, 0.18);
+}
+
+/* File input */
+input[type="file"] {
+  padding: 8px;
+}
+
+/* --- Buttons (zelfde achtergrondkleur) --- */
 button {
-  border: 1px solid rgba(106,90,205,.6);
-  background: rgba(106,90,205,.15);
-  color: #eae6ff;
+  border: 1px solid var(--border) !important;
+  background: var(--surface) !important;
+  color: var(--text) !important;
   padding: 9px 12px;
   border-radius: 10px;
   cursor: pointer;
 }
-button.secondary {
-  border-color: var(--border);
-  background: transparent;
-  color: var(--text);
-}
-button.danger {
-  border-color: rgba(224,93,93,.55);
-  background: rgba(224,93,93,.12);
+
+button:hover {
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08);
 }
 
+button.secondary,
+button.danger {
+  border: 1px solid var(--border) !important;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+}
+
+/* --- Lists / Items --- */
 .items { display: grid; gap: 10px; }
 
 .item {
@@ -103,24 +166,48 @@ button.danger {
   grid-template-columns: 1fr auto;
   gap: 12px;
   padding: 12px;
-  border: 1px solid var(--border);
   border-radius: 12px;
-  background: #10141b;
 }
 
 .itemTitle { font-weight: 700; margin-bottom: 6px; }
 .itemMeta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--muted); }
-.itemNotes { margin-top: 8px; color: #d6dbe5; font-size: 13px; }
+.itemNotes { margin-top: 8px; color: var(--text); font-size: 13px; }
 .itemActions { display: flex; gap: 8px; align-items: start; }
 
 .empty { color: var(--muted); font-size: 13px; padding: 10px; }
 
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.list { display: grid; gap: 8px; margin-top: 10px; }
+
+.listRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border-radius: 12px;
+}
+
+.mutedSmall { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+/* Link-row button in list */
+.linkRow {
+  width: 100%;
+  text-align: left;
+  padding: 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  color: var(--text) !important;
+}
+
+/* --- Dialog --- */
 .dlg { border: none; padding: 0; background: transparent; }
-.dlg::backdrop { background: rgba(0,0,0,.55); }
+.dlg::backdrop { background: rgba(0,0,0,.35); }
 
 .dlgInner {
-  background-color: #ffffff;
   border-radius: 8px;
+  padding: 16px;
 }
 
 .dlgHeader {
@@ -128,106 +215,35 @@ button.danger {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  border-bottom: 1px solid var(--border);
   padding-bottom: 10px;
+  border-radius: 8px;
 }
 
 .dlgBody { padding-top: 10px; display: grid; gap: 12px; }
+
 .row { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
 .hint { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
 
 .receipts { display: grid; gap: 10px; }
+
 .receiptRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 10px;
   padding: 10px;
-  border: 1px solid var(--border);
   border-radius: 12px;
-  background: #10141b;
-}
-.receiptLink { color: #dcd8ff; text-decoration: none; }
-.receiptLink:hover { text-decoration: underline; }
-
-.split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.subcard {
-  border: 1px solid var(--border);
-  background: #10141b;
-  border-radius: 12px;
-  padding: 12px;
-}
-h3 { margin: 0 0 10px 0; font-size: 14px; }
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: center; }
-.list { display: grid; gap: 8px; margin-top: 10px; }
-.listRow {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  align-items: center;
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: #0f1218;
-}
-.mutedSmall { color: var(--muted); font-size: 12px; margin-top: 4px; }
-.boxSelect { min-width: 220px; }
-select {
-  width: 100%;
-  padding: 10px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: #0f1218;
-  color: var(--text);
-}
-@media (max-width: 900px) {
-  .split { grid-template-columns: 1fr; }
-  .grid2 { grid-template-columns: 1fr; }
 }
 
+.receiptLink { color: var(--text); text-decoration: underline; }
+.receiptLink:hover { text-decoration: none; }
+
+/* --- Misc --- */
 .itemTitleRow { display: flex; align-items: center; gap: 10px; }
 .check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
 .check input { width: 16px; height: 16px; }
-.linkRow {
-  width: 100%;
-  text-align: left;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text);
-  padding: 10px;
-  border-radius: 12px;
-  cursor: pointer;
-}
-.linkRow:hover { border-color: rgba(106,90,205,.6); }
 
-/* --- Light inputs (override dark theme fields) --- */
-label { color: #333; } /* optioneel: labels leesbaar op licht */
-
-input,
-textarea,
-select {
-  background: #ffffff;
-  color: #222;
-  border: 1px solid #d7d7d7;
-}
-
-input::placeholder,
-textarea::placeholder {
-  color: #777;
-}
-
-input:focus,
-textarea:focus,
-select:focus {
-  outline: none;
-  border-color: #6a5acd;
-  box-shadow: 0 0 0 3px rgba(106, 90, 205, 0.18);
-}
-
-/* Zorg dat file input ook licht is */
-input[type="file"] {
-  background: #ffffff;
-  color: #222;
-  border: 1px solid #d7d7d7;
-  padding: 8px;
+@media (max-width: 900px) {
+  .split { grid-template-columns: 1fr; }
+  .grid2 { grid-template-columns: 1fr; }
 }
