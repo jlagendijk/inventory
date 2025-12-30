@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "express": "^4.19.2",
-    "mariadb": "^3.4.0"
+    "mariadb": "^3.4.0",
+    "multer": "^1.4.5"
   }
 }
