@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Inventory Jeroen</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">Inventory Jeroen</div>
+    <div id="healthPill" class="pill">DB: ...</div>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>Zoeken</h2>
+      <div class="row">
+        <input id="search" placeholder="Zoek op label, type, doos/krat, afmeting, locatie..." />
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Nieuw item</h2>
+
+      <form id="itemForm" class="grid">
+        <label>
+          Label / Naam *
+          <input id="label" required />
+        </label>
+
+        <label>
+          Type
+          <select id="typeSelect"></select>
+        </label>
+
+        <label>
+          Doos/kratnummer
+          <input id="box_no" placeholder="Bijv. KRAT-3 / DOOS-12" />
+        </label>
+
+        <label>
+          Aantal
+          <input id="qty" type="number" min="0" step="1" />
+        </label>
+
+        <label>
+          Afmeting
+          <select id="sizeSelect"></select>
+        </label>
+
+        <label>
+          Locatie
+          <select id="locationSelect"></select>
+        </label>
+
+        <div class="span2 actions">
+          <button type="submit">Opslaan</button>
+          <button type="button" id="resetBtn" class="secondary">Leegmaken</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Beheer (uitbreidbaar)</h2>
+      <div class="split">
+        <div class="subcard">
+          <h3>Types</h3>
+          <div class="row">
+            <input id="newType" placeholder="Nieuw type..." />
+            <button id="addTypeBtn" type="button">Toevoegen</button>
+          </div>
+          <div id="typesList" class="list"></div>
+        </div>
+
+        <div class="subcard">
+          <h3>Locaties</h3>
+          <div class="row">
+            <input id="newLocation" placeholder="Nieuwe locatie..." />
+            <button id="addLocationBtn" type="button">Toevoegen</button>
+          </div>
+          <div id="locationsList" class="list"></div>
+        </div>
+
+        <div class="subcard">
+          <h3>Afmetingen</h3>
+          <div class="row">
+            <input id="newSize" placeholder="Nieuwe afmeting..." />
+            <button id="addSizeBtn" type="button">Toevoegen</button>
+          </div>
+          <div id="sizesList" class="list"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Overzicht</h2>
+      <div id="items" class="items"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
