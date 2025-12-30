@@ -1,0 +1,61 @@
+:root{
+  --bg:#fffbe6;
+  --surface:#fffbe6;
+  --text:#222;
+  --muted:#444;
+  --border:#000;
+}
+
+*{box-sizing:border-box;}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 18px;display:flex;justify-content:space-between;align-items:center;}
+.title{font-weight:700;}
+.pill{font-size:12px;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:var(--surface);}
+
+.container{max-width:1100px;padding:18px;margin:0 auto;display:grid;gap:18px;}
+.card,.subcard{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;}
+
+h2{margin:0 0 12px 0;font-size:16px;}
+h3{margin:0 0 10px 0;font-size:14px;}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+label{display:grid;gap:6px;font-size:12px;color:var(--text);}
+.span2{grid-column:span 2;}
+
+input,select,textarea{
+  width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);
+  background:var(--surface);color:var(--text);
+}
+textarea{resize:vertical;}
+
+.actions{display:flex;gap:10px;justify-content:flex-end;}
+button{
+  border:1px solid var(--border);background:var(--surface);color:var(--text);
+  padding:9px 12px;border-radius:10px;cursor:pointer;
+}
+button:hover{box-shadow:0 0 0 3px rgba(0,0,0,.08);}
+button.danger{font-weight:600;}
+
+.split{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.list{display:grid;gap:8px;margin-top:10px;}
+.listRow{
+  display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px;
+  border:1px solid var(--border);border-radius:12px;background:var(--surface);
+}
+
+.items{display:grid;gap:10px;}
+.item{
+  display:grid;grid-template-columns:1fr auto;gap:12px;padding:12px;
+  border:1px solid var(--border);border-radius:12px;background:var(--surface);
+}
+.itemTitle{font-weight:700;margin-bottom:6px;}
+.itemMeta{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--muted);}
+.itemActions{display:flex;gap:8px;align-items:start;}
+.empty{color:var(--muted);font-size:13px;padding:10px;}
+
+.row{display:flex;gap:12px;align-items:center;justify-content:space-between;}
+
+@media (max-width:900px){
+  .grid{grid-template-columns:1fr;}
+  .split{grid-template-columns:1fr;}
+}
