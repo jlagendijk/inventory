@@ -1,31 +1,37 @@
 const $ = (id) => document.getElementById(id);
 
-function baseUrl() {
-  return new URL(".", window.location.href);
-}
-async function api(path, options = {}) {
-  const url = new URL(String(path).replace(/^\/+/, ""), baseUrl());
-  const isFormData = options.body instanceof FormData;
-  const headers = { ...(options.headers || {}) };
-  if (!isFormData) headers["Content-Type"] = headers["Content-Type"] || "application/json";
-
-  const res = await fetch(url.toString(), { ...options, headers });
-  if (!res.ok) throw new Error(`${res.status}: ${await res.text().catch(() => res.statusText)}`);
+async function api(path, opts) {
+  const res = await fetch(path, opts);
+  if (!res.ok) {
+    let detail = "";
+    try { detail = await res.text(); } catch {}
+    throw new Error(`${res.status}: ${res.statusText}${detail ? " - " + detail : ""}`);
+  }
   const ct = res.headers.get("content-type") || "";
   return ct.includes("application/json") ? res.json() : res.text();
 }
 
 function esc(s) {
-  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[c]));
+  return String(s ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function fmtDate(d) {
+  if (!d) return "";
+  return String(d).slice(0, 10);
 }
 
 let items = [];
-let search = "";
-let activeItemId = null;
+let currentAttachItemId = null;
+let currentAttachItemName = "";
 
 async function loadHealth() {
   try {
-    const h = await api("api/health");
+    const h = await api("./api/health");
     $("healthPill").textContent = `DB: ${h.db ? "OK" : "?"}`;
     $("healthPill").classList.toggle("ok", !!h.db);
   } catch {
@@ -35,139 +41,184 @@ async function loadHealth() {
 }
 
 async function loadItems() {
-  items = await api("api/items");
+  items = await api("./api/items");
   renderItems();
 }
 
 function renderItems() {
-  const root = $("items");
-  root.innerHTML = "";
-
-  const filtered = search
-    ? items.filter(i => (`${i.label} ${i.store ?? ""} ${i.description ?? ""}`).toLowerCase().includes(search))
-    : items;
-
-  if (!filtered.length) {
-    root.innerHTML = `<div class="empty">Nog geen artikelen (of geen zoekresultaten).</div>`;
+  const el = $("items");
+  if (!items.length) {
+    el.innerHTML = `<div class="empty">Nog geen artikelen.</div>`;
     return;
   }
 
-  for (const it of filtered) {
-    const pd = it.purchase_date ? String(it.purchase_date).slice(0, 10) : "-";
-    const qty = it.qty ?? "-";
-    const wm = it.warranty_months ?? "-";
+  el.innerHTML = items.map((it) => {
+    const meta = [
+      it.quantity != null ? `Aantal: ${esc(it.quantity)}` : null,
+      it.store ? `Winkel: ${esc(it.store)}` : null,
+      it.purchase_date ? `Datum: ${esc(fmtDate(it.purchase_date))}` : null,
+      it.warranty_months != null ? `Garantie: ${esc(it.warranty_months)} mnd` : null,
+      it.article_no ? `Art.nr: ${esc(it.article_no)}` : null
+    ].filter(Boolean).join(" · ");
 
-    const div = document.createElement("div");
-    div.className = "item";
-    div.innerHTML = `
-      <div class="itemMain">
-        <div class="itemTitle">${esc(it.label)}</div>
-        <div class="itemMeta">
-          <span><b>Aantal:</b> ${qty}</span>
-          <span><b>Winkel:</b> ${esc(it.store ?? "-")}</span>
-          <span><b>Datum:</b> ${pd}</span>
-          <span><b>Garantie:</b> ${wm} mnd</span>
+    const link = it.link_url
+      ? `<div class="mutedSmall"><a class="receiptLink" href="${esc(it.link_url)}" target="_blank" rel="noopener">Open link</a></div>`
+      : "";
+
+    const notes = it.notes ? `<div class="itemNotes">${esc(it.notes)}</div>` : "";
+
+    return `
+      <div class="item">
+        <div>
+          <div class="itemTitle">${esc(it.name)}</div>
+          ${it.description ? `<div class="mutedSmall">${esc(it.description)}</div>` : ""}
+          <div class="itemMeta">${esc(meta)}</div>
+          ${link}
+          ${notes}
         </div>
-        ${it.description ? `<div class="itemNotes">${esc(it.description)}</div>` : ""}
-      </div>
-      <div class="itemActions">
-        <button class="secondary" data-receipts="${it.id}">Bonnen</button>
-        <button class="danger" data-del="${it.id}">Verwijder</button>
+
+        <div class="itemActions">
+          <button class="secondary" data-attach="${it.id}" data-name="${esc(it.name)}">Bijlagen</button>
+          <button class="danger" data-del="${it.id}">Verwijder</button>
+        </div>
       </div>
     `;
-    root.appendChild(div);
-  }
+  }).join("");
 
-  root.querySelectorAll("[data-del]").forEach(btn => {
+  el.querySelectorAll("[data-del]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      await api(`api/items/${btn.getAttribute("data-del")}`, { method: "DELETE" });
+      const id = Number(btn.getAttribute("data-del"));
+      if (!confirm("Artikel verwijderen? (Bijlagen worden ook verwijderd)")) return;
+      await api(`./api/items/${id}`, { method: "DELETE" });
       await loadItems();
     });
   });
 
-  root.querySelectorAll("[data-receipts]").forEach(btn => {
+  el.querySelectorAll("[data-attach]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      activeItemId = Number(btn.getAttribute("data-receipts"));
-      $("receiptFile").value = "";
-      await loadReceipts(activeItemId);
-      $("receiptsDlg").showModal();
+      const id = Number(btn.getAttribute("data-attach"));
+      const name = btn.getAttribute("data-name") || "";
+      openAttachments(id, name);
     });
   });
 }
 
-async function loadReceipts(itemId) {
-  const list = await api(`api/items/${itemId}/receipts`);
-  const root = $("receiptsList");
-  root.innerHTML = "";
+async function openAttachments(itemId, itemName) {
+  currentAttachItemId = itemId;
+  currentAttachItemName = itemName;
 
-  if (!list.length) {
-    root.innerHTML = `<div class="empty">Nog geen bonnen.</div>`;
+  $("attachDlgTitle").textContent = `Bijlagen - ${itemName}`;
+  $("attachFile").value = "";
+  $("attachKind").value = "receipt";
+
+  await loadAttachments();
+  $("attachDlg").showModal();
+}
+
+async function loadAttachments() {
+  const rows = await api(`./api/items/${currentAttachItemId}/attachments`);
+  const el = $("attachList");
+
+  if (!rows.length) {
+    el.innerHTML = `<div class="empty">Nog geen bijlagen.</div>`;
     return;
   }
 
-  for (const r of list) {
-    const row = document.createElement("div");
-    row.className = "receiptRow";
-    row.innerHTML = `
-      <a class="receiptLink" href="${r.url}" target="_blank" rel="noreferrer">
-        ${esc(r.original_name ?? r.filename)}
-      </a>
-      <button class="danger" data-rdel="${r.id}">Delete</button>
+  el.innerHTML = rows.map(a => {
+    const kindLabel = a.kind === "manual" ? "Gebruiksaanwijzing" : "Bon";
+    const name = a.original_name || a.filename;
+    return `
+      <div class="receiptRow">
+        <div>
+          <div class="itemTitle">${esc(kindLabel)}: ${esc(name)}</div>
+          <div class="mutedSmall">${esc(fmtDate(a.created_at))}</div>
+        </div>
+        <div class="itemActions">
+          <a class="receiptLink" href="${esc(a.url)}" target="_blank" rel="noopener">Open</a>
+          <button class="danger" data-del-attach="${a.id}">Verwijder</button>
+        </div>
+      </div>
     `;
-    root.appendChild(row);
-  }
+  }).join("");
 
-  root.querySelectorAll("[data-rdel]").forEach(btn => {
+  el.querySelectorAll("[data-del-attach]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      await api(`api/receipts/${btn.getAttribute("data-rdel")}`, { method: "DELETE" });
-      await loadReceipts(activeItemId);
+      const id = Number(btn.getAttribute("data-del-attach"));
+      if (!confirm("Bijlage verwijderen?")) return;
+      await api(`./api/attachments/${id}`, { method: "DELETE" });
+      await loadAttachments();
     });
   });
 }
 
-async function uploadReceipt(itemId, file) {
-  const url = new URL(`api/items/${itemId}/receipts`, baseUrl());
-  const form = new FormData();
-  form.append("file", file);
+async function uploadAttachment() {
+  if (!currentAttachItemId) return;
 
-  const res = await fetch(url.toString(), { method: "POST", body: form });
-  if (!res.ok) throw new Error(`${res.status}: ${await res.text().catch(() => res.statusText)}`);
+  const file = $("attachFile").files?.[0];
+  const kind = $("attachKind").value;
+
+  if (!file) {
+    alert("Kies eerst een bestand.");
+    return;
+  }
+
+  const fd = new FormData();
+  fd.append("kind", kind);
+  fd.append("file", file);
+
+  await fetch(`./api/items/${currentAttachItemId}/attachments`, {
+    method: "POST",
+    body: fd
+  }).then(async (r) => {
+    if (!r.ok) throw new Error(await r.text());
+  });
+
+  $("attachFile").value = "";
+  await loadAttachments();
+}
+
+function resetForm() {
+  $("name").value = "";
+  $("description").value = "";
+  $("quantity").value = "";
+  $("store").value = "";
+  $("purchase_date").value = "";
+  $("warranty_months").value = "";
+  $("article_no").value = "";
+  $("link_url").value = "";
+  $("notes").value = "";
+}
+
+async function onSubmit(e) {
+  e.preventDefault();
+
+  const body = {
+    name: $("name").value.trim(),
+    description: $("description").value.trim() || null,
+    quantity: $("quantity").value === "" ? null : Number($("quantity").value),
+    store: $("store").value.trim() || null,
+    purchase_date: $("purchase_date").value || null,
+    warranty_months: $("warranty_months").value === "" ? null : Number($("warranty_months").value),
+    article_no: $("article_no").value.trim() || null,
+    link_url: $("link_url").value.trim() || null,
+    notes: $("notes").value.trim() || null
+  };
+
+  await api("./api/items", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  resetForm();
+  await loadItems();
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+  $("itemForm").addEventListener("submit", onSubmit);
+  $("resetBtn").addEventListener("click", resetForm);
+  $("uploadAttachBtn").addEventListener("click", uploadAttachment);
+
   await loadHealth();
-  setInterval(loadHealth, 10000);
-
-  $("search").addEventListener("input", () => {
-    search = $("search").value.trim().toLowerCase();
-    renderItems();
-  });
-
-  $("itemForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const payload = {
-      label: $("label").value.trim(),
-      qty: $("qty").value.trim() === "" ? null : Number($("qty").value),
-      store: $("store").value.trim() || null,
-      purchase_date: $("purchase_date").value || null,
-      warranty_months: $("warranty_months").value.trim() === "" ? null : Number($("warranty_months").value),
-      description: $("description").value.trim() || null,
-    };
-    await api("api/items", { method: "POST", body: JSON.stringify(payload) });
-    e.target.reset();
-    await loadItems();
-  });
-
-  $("resetBtn").addEventListener("click", () => $("itemForm").reset());
-
-  $("uploadReceiptBtn").addEventListener("click", async () => {
-    if (!activeItemId) return;
-    const f = $("receiptFile").files?.[0];
-    if (!f) return;
-    await uploadReceipt(activeItemId, f);
-    $("receiptFile").value = "";
-    await loadReceipts(activeItemId);
-  });
-
   await loadItems();
 });
