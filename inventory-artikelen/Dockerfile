@@ -4,15 +4,16 @@ FROM ${BUILD_FROM}
 WORKDIR /app
 RUN apk add --no-cache nodejs npm
 
+# scripts
 COPY run.sh /run.sh
 RUN chmod a+x /run.sh
 
-# deps eerst (cache)
+# eerst package.json kopiëren voor caching
 COPY server/package.json ./server/package.json
 COPY server/package-lock.json* ./server/
 RUN cd /app/server && npm install --omit=dev
 
-# app code
+# daarna de rest
 COPY server ./server
 COPY web ./web
 
