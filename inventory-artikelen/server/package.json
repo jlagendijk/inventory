@@ -1,0 +1,10 @@
+{
+  "name": "inventory-artikelen",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "express": "^4.19.2",
+    "mariadb": "^3.4.0"
+  }
+}
