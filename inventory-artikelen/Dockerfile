@@ -2,18 +2,18 @@ ARG BUILD_FROM
 FROM ${BUILD_FROM}
 
 WORKDIR /app
+
 RUN apk add --no-cache nodejs npm
 
-# scripts
 COPY run.sh /run.sh
 RUN chmod a+x /run.sh
 
-# eerst package.json kopiëren voor caching
+# Dependencies
 COPY server/package.json ./server/package.json
 COPY server/package-lock.json* ./server/
-RUN cd /app/server && npm install --omit=dev
+RUN cd /app/server && npm install --omit=dev --no-audit --no-fund
 
-# daarna de rest
+# App code
 COPY server ./server
 COPY web ./web
 
