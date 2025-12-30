@@ -8,12 +8,12 @@ startup: services
 init: false
 
 ingress: true
-ingress_port: 8100
+ingress_port: 8099
 panel_icon: mdi:receipt
 panel_title: Inventory Artikelen
 
 ports:
-  8100/tcp: null
+  8099/tcp: null
 
 options:
   db_host: core-mariadb
