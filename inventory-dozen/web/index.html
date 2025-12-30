@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Inventory Dozen</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">Inventory Dozen</div>
+    <div id="healthPill" class="pill">DB: ...</div>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>Zoeken</h2>
+      <div class="row">
+        <input id="search" placeholder="Zoek in dozen, inhoud en locaties..." />
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Locaties</h2>
+      <div class="row">
+        <input id="locName" placeholder="Bijv. Zolder, Schuur, Garage" />
+        <button id="addLocBtn" type="button">Toevoegen</button>
+      </div>
+      <div id="locationsList" class="list"></div>
+    </section>
+
+    <section class="card">
+      <h2>Dozen</h2>
+      <div class="grid2">
+        <input id="boxLabel" placeholder="Label / Naam (bijv. Kerstspullen)" />
+        <select id="boxLocation"></select>
+        <button id="addBoxBtn" type="button">Doos toevoegen</button>
+      </div>
+      <div id="boxesList" class="list"></div>
+    </section>
+  </main>
+
+  <dialog id="boxDlg" class="dlg">
+    <form method="dialog" class="dlgInner">
+      <div class="dlgHeader">
+        <h3 id="boxDlgTitle">Doos</h3>
+        <button value="close" class="secondary">Sluiten</button>
+      </div>
+
+      <div class="dlgBody">
+        <div class="hint" id="boxDlgMeta"></div>
+
+        <div class="row">
+          <input id="boxItemName" placeholder="Inhoud (bijv. kerstballen)" />
+          <input id="boxItemQty" type="number" min="0" step="1" placeholder="Aantal" style="max-width:140px" />
+          <button id="addBoxItemBtn" type="button">Toevoegen</button>
+        </div>
+
+        <div id="boxItemsList" class="items"></div>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
