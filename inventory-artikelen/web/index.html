@@ -14,24 +14,22 @@
 
   <main class="container">
     <section class="card">
-      <h2>Zoeken</h2>
-      <div class="row">
-        <input id="search" placeholder="Zoek op label/naam, winkel, omschrijving..." />
-      </div>
-    </section>
-
-    <section class="card">
       <h2>Nieuw artikel</h2>
 
       <form id="itemForm" class="grid">
         <label>
           Label / Naam *
-          <input id="label" required />
+          <input id="name" required />
+        </label>
+
+        <label>
+          Omschrijving
+          <input id="description" />
         </label>
 
         <label>
           Aantal
-          <input id="qty" type="number" min="0" step="1" />
+          <input id="quantity" type="number" min="0" step="1" />
         </label>
 
         <label>
@@ -49,9 +47,19 @@
           <input id="warranty_months" type="number" min="0" step="1" />
         </label>
 
+        <label>
+          Artikelnummer
+          <input id="article_no" />
+        </label>
+
         <label class="span2">
-          Omschrijving
-          <textarea id="description" rows="3"></textarea>
+          Link (optioneel)
+          <input id="link_url" placeholder="https://..." />
+        </label>
+
+        <label class="span2">
+          Notities
+          <textarea id="notes" rows="3"></textarea>
         </label>
 
         <div class="span2 actions">
@@ -67,25 +75,34 @@
     </section>
   </main>
 
-  <dialog id="receiptsDlg" class="dlg">
+  <dialog id="attachDlg" class="dlg">
     <form method="dialog" class="dlgInner">
       <div class="dlgHeader">
-        <h3>Kassabonnen (optioneel)</h3>
+        <h3 id="attachDlgTitle">Bijlagen</h3>
         <button value="close" class="secondary">Sluiten</button>
       </div>
 
       <div class="dlgBody">
-        <div class="row">
-          <div>
-            <div class="hint">Scan/upload kassabon (telefoon)</div>
-            <input id="receiptFile" type="file" accept="image/*" capture="environment" />
-          </div>
+        <div class="row" style="gap:10px; align-items:flex-end;">
+          <label style="flex:1; display:grid; gap:6px;">
+            Type
+            <select id="attachKind">
+              <option value="receipt">Bon</option>
+              <option value="manual">Gebruiksaanwijzing</option>
+            </select>
+          </label>
+
+          <label style="flex:2; display:grid; gap:6px;">
+            Bestand (camera/telefoon)
+            <input id="attachFile" type="file" accept="image/*,application/pdf" capture="environment" />
+          </label>
+
           <div class="right">
-            <button type="button" id="uploadReceiptBtn">Upload</button>
+            <button type="button" id="uploadAttachBtn">Upload</button>
           </div>
         </div>
 
-        <div id="receiptsList" class="receipts"></div>
+        <div id="attachList" class="receipts"></div>
       </div>
     </form>
   </dialog>
