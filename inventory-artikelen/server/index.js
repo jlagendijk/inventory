@@ -1,7 +1,7 @@
 import express from "express";
 import fs from "fs";
 import path from "path";
-import multer from "multer";
+
 import { createPool, ensureSchema } from "./db.js";
 
 const OPTIONS_PATH = "/data/options.json";
