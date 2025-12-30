@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Inventory Artikelen</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">Inventory Artikelen</div>
+    <div id="healthPill" class="pill">DB: ...</div>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>Zoeken</h2>
+      <div class="row">
+        <input id="search" placeholder="Zoek op label/naam, winkel, omschrijving..." />
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Nieuw artikel</h2>
+
+      <form id="itemForm" class="grid">
+        <label>
+          Label / Naam *
+          <input id="label" required />
+        </label>
+
+        <label>
+          Aantal
+          <input id="qty" type="number" min="0" step="1" />
+        </label>
+
+        <label>
+          Waar gekocht
+          <input id="store" />
+        </label>
+
+        <label>
+          Datum gekocht
+          <input id="purchase_date" type="date" />
+        </label>
+
+        <label>
+          Garantieduur (maanden)
+          <input id="warranty_months" type="number" min="0" step="1" />
+        </label>
+
+        <label class="span2">
+          Omschrijving
+          <textarea id="description" rows="3"></textarea>
+        </label>
+
+        <div class="span2 actions">
+          <button type="submit">Opslaan</button>
+          <button type="button" id="resetBtn" class="secondary">Leegmaken</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Artikelen</h2>
+      <div id="items" class="items"></div>
+    </section>
+  </main>
+
+  <dialog id="receiptsDlg" class="dlg">
+    <form method="dialog" class="dlgInner">
+      <div class="dlgHeader">
+        <h3>Kassabonnen (optioneel)</h3>
+        <button value="close" class="secondary">Sluiten</button>
+      </div>
+
+      <div class="dlgBody">
+        <div class="row">
+          <div>
+            <div class="hint">Scan/upload kassabon (telefoon)</div>
+            <input id="receiptFile" type="file" accept="image/*" capture="environment" />
+          </div>
+          <div class="right">
+            <button type="button" id="uploadReceiptBtn">Upload</button>
+          </div>
+        </div>
+
+        <div id="receiptsList" class="receipts"></div>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
