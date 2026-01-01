@@ -200,11 +200,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
 
-      const label = $("label")?.value?.trim() ?? "";
+      const label = ($("label")?.value ?? "").trim(); // mag leeg
       if (!label) return;
 
       const payload = {
-        label,
+        label: label === "" ? null : label,
         type_id: $("typeSelect")?.value || null,
         box_no: ($("box_no")?.value ?? "").trim() || null,
         qty: ($("qty")?.value ?? "").trim() === "" ? null : Number($("qty").value),
