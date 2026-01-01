@@ -1,20 +1,35 @@
 const $ = (id) => document.getElementById(id);
 
-function baseUrl() { return new URL(".", window.location.href); }
+function baseUrl() {
+  return new URL(".", window.location.href);
+}
+
 async function api(path, options = {}) {
   const url = new URL(String(path).replace(/^\/+/, ""), baseUrl());
+
   const isFormData = options.body instanceof FormData;
   const headers = { ...(options.headers || {}) };
   if (!isFormData) headers["Content-Type"] = headers["Content-Type"] || "application/json";
 
   const res = await fetch(url.toString(), { ...options, headers });
-  if (!res.ok) throw new Error(`${res.status}: ${await res.text().catch(() => res.statusText)}`);
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => res.statusText);
+    throw new Error(`${res.status}: ${txt}`);
+  }
+
   const ct = res.headers.get("content-type") || "";
   return ct.includes("application/json") ? res.json() : res.text();
 }
 
 function esc(s) {
-  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[c]));
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  }[c]));
 }
 
 let types = [];
@@ -23,22 +38,27 @@ let sizes = [];
 let items = [];
 let search = "";
 
+// -------------------- Health --------------------
 async function loadHealth() {
+  const pill = $("healthPill");
+  if (!pill) return;
+
   try {
     const h = await api("api/health");
-    $("healthPill").textContent = `DB: ${h.db ? "OK" : "?"}`;
-    $("healthPill").classList.toggle("ok", !!h.db);
+    pill.textContent = `DB: ${h.db ? "OK" : "?"}`;
+    pill.classList.toggle("ok", !!h.db);
   } catch {
-    $("healthPill").textContent = "DB: ERROR";
-    $("healthPill").classList.remove("ok");
+    pill.textContent = "DB: ERROR";
+    pill.classList.remove("ok");
   }
 }
 
+// -------------------- Lookups --------------------
 async function loadLookups() {
   [types, locations, sizes] = await Promise.all([
     api("api/types"),
     api("api/locations"),
-    api("api/sizes"),
+    api("api/sizes")
   ]);
 
   renderSelect($("typeSelect"), types, "(geen type)");
@@ -51,6 +71,8 @@ async function loadLookups() {
 }
 
 function renderSelect(sel, rows, emptyText) {
+  if (!sel) return;
+
   sel.innerHTML = `<option value="">${emptyText}</option>`;
   for (const r of rows) {
     const opt = document.createElement("option");
@@ -62,26 +84,47 @@ function renderSelect(sel, rows, emptyText) {
 
 function renderList(rootId, rows, endpoint) {
   const root = $(rootId);
+  if (!root) return;
+
   root.innerHTML = "";
   if (!rows.length) {
     root.innerHTML = `<div class="empty">Leeg</div>`;
     return;
   }
+
   for (const r of rows) {
     const row = document.createElement("div");
     row.className = "listRow";
-    row.innerHTML = `<div><b>${esc(r.name)}</b></div><button class="danger" data-del="${r.id}">Verwijder</button>`;
+    row.innerHTML = `
+      <div><b>${esc(r.name)}</b></div>
+      <button class="danger" data-del="${r.id}">Verwijder</button>
+    `;
     root.appendChild(row);
   }
-  root.querySelectorAll("[data-del]").forEach(btn => {
+
+  root.querySelectorAll("[data-del]").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      await api(`${endpoint}/${btn.getAttribute("data-del")}`, { method: "DELETE" });
+      const id = btn.getAttribute("data-del");
+      await api(`${endpoint}/${id}`, { method: "DELETE" });
       await loadLookups();
       await loadItems();
     });
   });
 }
 
+async function addLookup(endpoint, inputId) {
+  const input = $(inputId);
+  if (!input) return;
+
+  const name = input.value.trim();
+  if (!name) return;
+
+  await api(endpoint, { method: "POST", body: JSON.stringify({ name }) });
+  input.value = "";
+  await loadLookups();
+}
+
+// -------------------- Items --------------------
 async function loadItems() {
   items = await api("api/items");
   renderItems();
@@ -89,11 +132,13 @@ async function loadItems() {
 
 function renderItems() {
   const root = $("items");
+  if (!root) return;
+
   root.innerHTML = "";
 
   const filtered = search
-    ? items.filter(i => {
-        const s = `${i.label} ${i.type_name ?? ""} ${i.box_no ?? ""} ${i.size_name ?? ""} ${i.location_name ?? ""}`.toLowerCase();
+    ? items.filter((i) => {
+        const s = `${i.label ?? ""} ${i.type_name ?? ""} ${i.box_no ?? ""} ${i.size_name ?? ""} ${i.location_name ?? ""}`.toLowerCase();
         return s.includes(search);
       })
     : items;
@@ -108,7 +153,7 @@ function renderItems() {
     div.className = "item";
     div.innerHTML = `
       <div class="itemMain">
-        <div class="itemTitle">${esc(it.label)}</div>
+        <div class="itemTitle">${esc(it.label ?? "")}</div>
         <div class="itemMeta">
           <span><b>Type:</b> ${esc(it.type_name ?? "-")}</span>
           <span><b>Doos/Krat:</b> ${esc(it.box_no ?? "-")}</span>
@@ -124,51 +169,56 @@ function renderItems() {
     root.appendChild(div);
   }
 
-  root.querySelectorAll("[data-del]").forEach(btn => {
+  root.querySelectorAll("[data-del]").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      await api(`api/items/${btn.getAttribute("data-del")}`, { method: "DELETE" });
+      const id = btn.getAttribute("data-del");
+      await api(`api/items/${id}`, { method: "DELETE" });
       await loadItems();
     });
   });
 }
 
-async function addLookup(endpoint, inputId) {
-  const name = $(inputId).value.trim();
-  if (!name) return;
-  await api(endpoint, { method: "POST", body: JSON.stringify({ name }) });
-  $(inputId).value = "";
-  await loadLookups();
-}
-
+// -------------------- Init --------------------
 document.addEventListener("DOMContentLoaded", async () => {
   await loadHealth();
   setInterval(loadHealth, 10000);
 
-  $("search").addEventListener("input", () => {
-    search = $("search").value.trim().toLowerCase();
-    renderItems();
-  });
+  const searchEl = $("search");
+  if (searchEl) {
+    searchEl.addEventListener("input", () => {
+      search = searchEl.value.trim().toLowerCase();
+      renderItems();
+    });
+  }
 
-  $("addTypeBtn").addEventListener("click", () => addLookup("api/types", "newType"));
-  $("addLocationBtn").addEventListener("click", () => addLookup("api/locations", "newLocation"));
-  $("addSizeBtn").addEventListener("click", () => addLookup("api/sizes", "newSize"));
+  $("addTypeBtn")?.addEventListener("click", () => addLookup("api/types", "newType"));
+  $("addLocationBtn")?.addEventListener("click", () => addLookup("api/locations", "newLocation"));
+  $("addSizeBtn")?.addEventListener("click", () => addLookup("api/sizes", "newSize"));
 
-  $("itemForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const payload = {
-      label: $("label").value.trim(),
-      type_id: $("typeSelect").value || null,
-      box_no: $("box_no").value.trim() || null,
-      qty: $("qty").value.trim() === "" ? null : Number($("qty").value),
-      size_id: $("sizeSelect").value || null,
-      location_id: $("locationSelect").value || null,
-    };
-    await api("api/items", { method: "POST", body: JSON.stringify(payload) });
-    e.target.reset();
-    await loadItems();
-  });
+  const form = $("itemForm");
+  if (form) {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
 
-  $("resetBtn").addEventListener("click", () => $("itemForm").reset());
+      const label = $("label")?.value?.trim() ?? "";
+      if (!label) return;
+
+      const payload = {
+        label,
+        type_id: $("typeSelect")?.value || null,
+        box_no: ($("box_no")?.value ?? "").trim() || null,
+        qty: ($("qty")?.value ?? "").trim() === "" ? null : Number($("qty").value),
+        size_id: $("sizeSelect")?.value || null,
+        location_id: $("locationSelect")?.value || null
+      };
+
+      await api("api/items", { method: "POST", body: JSON.stringify(payload) });
+      form.reset();
+      await loadItems();
+    });
+  }
+
+  $("resetBtn")?.addEventListener("click", () => $("itemForm")?.reset());
 
   await loadLookups();
   await loadItems();
