@@ -1,7 +1,7 @@
 name: Inventory Jeroen
 slug: inventory_jeroen
 description: Materiaal/voorraadlijst met uitbreidbare types, afmetingen en locaties
-version: "1.0.0"
+version: "1.0.1"
 url: https://github.com/jlagendijk/inventory
 arch: [amd64, aarch64, armv7]
 startup: services
